@@ -13,9 +13,11 @@ const sony = {
   url: "https://www.amazon.co.uk/dp/B09Y2MYL5C/ref=twister_B09ZPGDRVY?_encoding=UTF8&th=1",
 };
 
-const data = sony;
+const sample = sony;
 
 async function start() {
+  let data = {};
+
   // Launch browser
   console.log("Launching browser");
   const browser = await puppeteer.launch();
@@ -24,27 +26,28 @@ async function start() {
   const page = await browser.newPage();
 
   // Specify which url to go to
-  await page.goto(data.url);
+  await page.goto(sample.url);
 
   // Click button to close cookies modal
   console.log("Closing cookies modal");
   await page.click("#sp-cc-rejectall-link");
 
-  // Take a screenshot of the page
-  //   console.log("Taking screenshot of page");
-  //   await page.screenshot({ path: "airpods-amazon-screenshot2.png" });
-
-  // Save the title and price
-  console.log("Extracting title and price");
-  const title = await page.$eval("#productTitle", (el) => {
+  // Extracting the title
+  console.log("Extracting title");
+  data.title = await page.$eval("#productTitle", (el) => {
     return el.textContent.trim();
   });
 
-  console.log("Writing title");
-  await fs.mkdir(`./${data.name}`, { recursive: true });
-  await fs.writeFile(`${data.name}/${data.name}.txt`, title);
+  // Extracting the price
+  console.log("Extracting price");
+  data.price = await page.$eval(".a-offscreen", (el) => {
+    return el.textContent;
+  });
 
-  // Save the main image
+  console.log("Creating new directory");
+  await fs.mkdir(`./products/${sample.name}`, { recursive: true });
+
+  // Extracting the main image
   console.log("Extracting main image");
   const mainImageSrc = await page.$eval(
     "#main-image-container > ul > li.image.item.itemNo0.maintain-height.selected > span > span > div > img",
@@ -53,15 +56,20 @@ async function start() {
     }
   );
 
+  // Hitting the image page
   console.log("Going to the image page");
   const mainImagePage = await page.goto(mainImageSrc);
 
   // Save image locally
   console.log("Saving image locally");
-  await fs.writeFile(
-    `${data.name}/${data.name}.png`,
-    await mainImagePage.buffer()
-  );
+  const filePath = `products/${sample.name}/${sample.name}.jpg`;
+  await fs.writeFile(filePath, await mainImagePage.buffer());
+  data.imagePath = filePath;
+
+  // Stringifying the data
+  console.log("Converting data and writing JSON");
+  const jsonOutput = JSON.stringify(data);
+  await fs.writeFile(`products/${sample.name}/${sample.name}.json`, jsonOutput);
 
   // Close the browser
   console.log("Closing browser");
